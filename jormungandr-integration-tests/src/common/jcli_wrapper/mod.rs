@@ -412,3 +412,10 @@ pub fn assert_get_rest_settings(host: &str) -> SettingsDto {
     let settings: SettingsDto = serde_yaml::from_str(&content).expect("Failed to parse settings");
     settings
 }
+
+pub fn assert_shutdown_node(host: &str) {
+    let output = process_utils::run_process_and_get_output(
+        jcli_commands::get_rest_shutdown_node_command(&host),
+    );
+    process_assert::assert_process_exited_successfully(output);
+}
