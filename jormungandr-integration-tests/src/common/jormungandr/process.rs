@@ -54,15 +54,5 @@ impl Drop for JormungandrProcess {
     fn drop(&mut self) {
         self.logger.print_error_and_invalid_logs();
         jcli_wrapper::assert_shutdown_node(&self.config.get_node_address());
-        self.logger.print_logs_if_contain_error();
     }
-}
-
-/// Method sends shutdown signal to jormungandr REST API
-/// WARNING: It asserts that REST API response is ok, it does not verify if its still up
-fn assert_shutdown_node(host: &str) {
-    let output = process_utils::run_process_and_get_output(
-        jcli_wrapper::jcli_commands::get_rest_shutdown_node_command(&host),
-    );
-    process_assert::assert_process_exited_successfully(output);
 }
