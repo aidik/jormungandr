@@ -203,7 +203,7 @@ pub fn push_headers() {
     assert!(server
         .logger
         .get_lines_from_log()
-        .any(|line| line.contains("thread \'block0\' panicked at \'not yet implemented\'")));
+        .any(|line| line.contains("not yet implemented")));
 }
 
 // L1020 Push headers incorrect header
@@ -321,8 +321,10 @@ pub fn get_fragments() {
         grpc::Error::Http(_) => (),
         _ => panic!("Wrong error"),
     };
-    assert!(server.logger.get_lines_from_log().any(|line| line
-        .contains("thread \'tokio-runtime-worker-0\' panicked at \'not yet implemented\'")));
+    assert!(server
+        .logger
+        .get_lines_from_log()
+        .any(|line| line.contains("not yet implemented")));
 
     /*assert_eq!(fragments.len(), 1);
     match fragments.iter().next().unwrap() {

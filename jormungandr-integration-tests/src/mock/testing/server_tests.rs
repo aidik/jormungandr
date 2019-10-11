@@ -15,13 +15,19 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum MockExitCode {
+    Timeout,
+    Success,
+}
+
 pub fn start_mock<F: 'static>(
     mock_port: u16,
     genesis_hash: Hash,
     tip_hash: Hash,
     protocol_version: ProtocolVersion,
     stop_func: F,
-) -> JoinHandle<()>
+) -> JoinHandle<MockExitCode>
 where
     F: Fn(&MockLogger) -> bool,
     F: std::marker::Send,
@@ -42,13 +48,13 @@ where
         let timeout = Duration::from_secs(120);
 
         loop {
+            thread::sleep(Duration::from_secs(1));
             if start.elapsed() > timeout {
-                return;
+                return MockExitCode::Timeout;
             }
             if stop_func(&logger) {
-                return;
+                return MockExitCode::Success;
             }
-            thread::sleep(Duration::from_secs(1));
         }
     })
 }
@@ -78,8 +84,13 @@ pub fn wrong_protocol() {
     );
 
     let server = start_jormungandr_node_as_leader(&mut config);
-    mock_thread.join().expect("mock thread error");
+    assert_eq!(
+        mock_thread.join().expect("mock thread error"),
+        MockExitCode::Success,
+        "Mock server timeout while waiting to stop event be triggered"
+    );
 
+    server.shutdown();
     assert!(server.logger.get_log_entries().any(|x| {
         x.msg == "protocol handshake failed: UnsupportedVersion(\"0\")"
             && x.peer_addr == peer_addr(mock_port)
@@ -100,8 +111,12 @@ pub fn wrong_genesis_hash() {
     );
 
     let (server, _) = bootstrap_node_with_peer(mock_port);
-    mock_thread.join().expect("mock thread error");
+    assert_eq!(
+        mock_thread.join().expect("mock thread error"),
+        MockExitCode::Success
+    );
 
+    server.shutdown();
     assert!(server.logger.get_log_entries().any(|x| {
         x.msg.contains("block 0 hash")
             && x.peer_addr == peer_addr(mock_port)
@@ -124,8 +139,12 @@ pub fn handshake_ok() {
     );
 
     let server = start_jormungandr_node_as_leader(&mut config);
-    mock_thread.join().expect("mock thread error");
+    assert_eq!(
+        mock_thread.join().expect("mock thread error"),
+        MockExitCode::Success
+    );
 
+    server.shutdown();
     assert!(!server
         .logger
         .get_log_entries()
@@ -147,7 +166,14 @@ pub fn tip_request_malformed_discrepancy() {
     );
 
     let server = start_jormungandr_node_as_leader(&mut config);
-    mock_thread.join().expect("mock thread error");
+    assert_eq!(
+        mock_thread.join().expect("mock thread error"),
+        MockExitCode::Success
+    );
 
-    println!("{}", server.logger.get_log_content());
+    server.shutdown();
+    assert!(!server
+        .logger
+        .get_log_entries()
+        .any(|x| { x.peer_addr == peer_addr(mock_port) && x.level == Level::WARN }));
 }
