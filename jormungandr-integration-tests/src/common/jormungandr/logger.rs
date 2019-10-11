@@ -22,6 +22,8 @@ pub enum Level {
     ERRO,
 }
 
+const SUCCESFULLY_CREATED_BLOCK_MSG: &str = "block from leader event successfully stored";
+
 // TODO: convert strings to enums for level/task/
 // TODO: convert ts to DateTime
 #[derive(Serialize, Deserialize)]
@@ -59,19 +61,20 @@ impl JormungandrLogger {
     }
 
     pub fn get_created_blocks_hashes(&self) -> Vec<Hash> {
-        self.get_log_entries()
-            .filter(|item| item.hash.is_some())
+        self.filter_entries_with_block_creation()
             .map(|item| Hash::from_str(&item.hash.unwrap()).unwrap())
             .collect()
     }
 
     pub fn get_created_blocks_counter(&self) -> usize {
+        self.filter_entries_with_block_creation().count()
+    }
+
+    fn filter_entries_with_block_creation(&self) -> impl Iterator<Item = LogEntry> + '_ {
         let expected_task = Some("block".to_string());
-        self.get_log_entries()
-            .filter(|x| {
-                x.msg == "block added successfully to Node's blockchain" && x.task == expected_task
-            })
-            .count()
+        self.get_log_entries().filter(move |x| {
+            x.msg == SUCCESFULLY_CREATED_BLOCK_MSG && x.task == expected_task && x.hash.is_some()
+        })
     }
 
     fn is_error_line(&self, line: &String) -> bool {
